@@ -202,6 +202,9 @@ class cassandra (
   }
 
   if $default_instance {
-    cassandra::instance { 'cassandra': }
+    cassandra::instance { 'cassandra':
+      config_path => $config_path,
+      systemctl => $systemctl,
+    }
   }
 }

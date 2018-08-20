@@ -1,38 +1,56 @@
-define cassandra::instance inherits cassandra (
+define cassandra::instance (
   $instance                     = $title,
-  $baseline_settings            = $::cassandra::baseline_settings,
-  $cassandra_2356_sleep_seconds = $::cassandra::cassandra_2356_sleep_seconds,
-  $cassandra_9822               = $::cassandra::cassandra_9822,
-  $cassandra_yaml_tmpl          = $::cassandra::cassandra_yaml_tmpl,
-  $commitlog_directory          = $::cassandra::commitlog_directory,
-  $commitlog_directory_mode     = $::cassandra::commitlog_directory_mode,
-  Boolean $manage_config_file   = $::cassandra::manage_config_file,
-  $config_file_mode             = $::cassandra::config_file_mode,
-  $config_path                  = $::cassandra::config_path,
-  $data_file_directories        = $::cassandra::data_file_directories,
-  $data_file_directories_mode   = $::cassandra::data_file_directories_mode,
-  $dc                           = $::cassandra::dc,
-  $dc_suffix                    = $::cassandra::dc_suffix,
-  $fail_on_non_supported_os     = $::cassandra::fail_on_non_supported_os,
-  $hints_directory              = $::cassandra::hints_directory,
-  $hints_directory_mode         = $::cassandra::hints_directory_mode,
-  $prefer_local                 = $::cassandra::prefer_local,
-  $rack                         = $::cassandra::rack,
-  $rackdc_tmpl                  = $::cassandra::rackdc_tmpl,
-  $saved_caches_directory       = $::cassandra::saved_caches_directory,
-  $saved_caches_directory_mode  = $::cassandra::saved_caches_directory_mode,
-  $service_enable               = $::cassandra::service_enable,
-  $service_ensure               = $::cassandra::service_ensure,
-  $service_refresh              = $::cassandra::service_refresh,
-  $settings                     = $::cassandra::settings,
-  $snitch_properties_file       = $::cassandra::snitch_properties_file,
-  $systemctl                    = $::cassandra::systemctl,
+  Boolean $include_cassandra    = true,
+  $baseline_settings            = {},
+  $cassandra_2356_sleep_seconds = 5,
+  $cassandra_9822               = false,
+  $cassandra_yaml_tmpl          = 'cassandra/cassandra.yaml.erb',
+  $commitlog_directory          = undef,
+  $commitlog_directory_mode     = '0750',
+  Boolean $manage_config_file   = true,
+  $config_file_mode             = '0644',
+  $config_path                  = undef,
+  $data_file_directories        = undef,
+  $data_file_directories_mode   = '0750',
+  $dc                           = 'DC1',
+  $dc_suffix                    = undef,
+  $hints_directory              = undef,
+  $hints_directory_mode         = '0750',
+  $prefer_local                 = undef,
+  $rack                         = 'RAC1',
+  $rackdc_tmpl                  = 'cassandra/cassandra-rackdc.properties.erb',
+  $saved_caches_directory       = undef,
+  $saved_caches_directory_mode  = '0750',
+  Array $jvm_options            = [],
+  String $jvm_options_tmpl      = 'cassandra/jvm.options.erb',
+  Array $cassandra_env          = [],
+  String $cassandra_env_tmpl    = 'cassandra/cassandra-env.sh.erb',
+  String $service_file_tmpl     = 'cassandra/cassandra.init.erb',
+  $service_enable               = true,
+  $service_ensure               = undef,
+  $service_refresh              = true,
+  $service_provider             = undef,
+  $settings                     = {},
+  $snitch_properties_file       = 'cassandra-rackdc.properties',
+  $systemctl                    = undef,
 ) {
 
+  if $include_cassandra {
+    include cassandra
+  }
+
+  $service_file = "/etc/init.d/${title}"
   $config_file = "${config_path}/cassandra.yaml"
   $dc_rack_properties_file = "${config_path}/${snitch_properties_file}"
+  $jvm_options_file = "${config_path}/jvm.options"
+  $jvm_options_file_before = Service[$title]
+  $cassandra_env_file = "${config_path}/cassandra-env.sh"
+  $cassandra_env_file_before = Service[$title]
 
-  include cassandra
+  if $service_refresh {
+    $jvm_options_file_notify = Service[$title]
+    $cassandra_env_file_notify = Service[$title]
+  }
 
   case $::osfamily {
     'RedHat': {
@@ -42,11 +60,11 @@ define cassandra::instance inherits cassandra (
       $dc_rack_properties_file_require = Package['cassandra']
       $dc_rack_properties_file_before  = []
       $data_dir_require = Package['cassandra']
-      $data_dir_before = []
+      $data_dir_before = [],
 
       if $::operatingsystemmajrelease == '7' and $::cassandra::service_provider == 'init' {
-        exec { "/sbin/chkconfig --add ${service_name}":
-          unless  => "/sbin/chkconfig --list ${service_name}",
+        exec { "/sbin/chkconfig --add ${title}":
+          unless  => "/sbin/chkconfig --list ${title}",
           require => Package['cassandra'],
           before  => Service[$instance],
         }
@@ -102,6 +120,9 @@ define cassandra::instance inherits cassandra (
       mode    => '0755',
       require => $config_path_require,
     }
+
+    $jvm_options_file_require = File[$config_path]
+    $cassandra_env_file_require = File[$config_path]
   }
 
   if $commitlog_directory {
@@ -195,6 +216,42 @@ define cassandra::instance inherits cassandra (
     before  => $dc_rack_properties_file_before,
   }
 
+  if $jvm_options != [] {
+    file { $jvm_options_file:
+      ensure => file,
+      content => template($jvm_options_tmpl),
+      owner   => 'cassandra',
+      group   => 'cassandra',
+      mode    => '0644',
+      require => $jvm_options_file_require,
+      before  => $jvm_options_file_before,
+      notify  => $jvm_options_file_notify,
+    }
+  }
+
+  if $cassandra_env != [] {
+    file { $cassandra_env_file:
+      ensure => file,
+      content => template($cassandra_env_tmpl),
+      owner   => 'cassandra',
+      group   => 'cassandra',
+      mode    => '0644',
+      require => $cassandra_env_file_require,
+      before  => $cassandra_env_file_before,
+      notify  => $cassandra_env_file_notify,
+    }
+  }
+
+  file { $service_file:
+    ensure  => file,
+    content => template($service_file_tmpl).
+    owner   => 'root',
+    group   => 'root',
+    mode    => '0755',
+    before  => Service['title']
+  }
+
+
   if $service_refresh {
     service { $title:
       ensure    => $service_ensure,
@@ -204,6 +261,7 @@ define cassandra::instance inherits cassandra (
         File[$config_file],
         File[$dc_rack_properties_file],
         Package['cassandra'],
+        File[$service_file]
       ],
     }
   } else {
@@ -215,6 +273,7 @@ define cassandra::instance inherits cassandra (
         File[$config_file],
         File[$dc_rack_properties_file],
         Package['cassandra'],
+        File[$service_file]
       ],
     }
   }

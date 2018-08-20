@@ -25,6 +25,7 @@ define cassandra::instance (
   String $jvm_options_tmpl      = 'cassandra/jvm.options.erb',
   Array $cassandra_env          = [],
   String $cassandra_env_tmpl    = 'cassandra/cassandra-env.sh.erb',
+  String $service_file_tmpl     = 'cassandra/cassandra.init.erb',
   $service_enable               = true,
   $service_ensure               = undef,
   $service_refresh              = true,
@@ -38,6 +39,7 @@ define cassandra::instance (
     include cassandra
   }
 
+  $service_file = "/etc/init.d/${title}"
   $config_file = "${config_path}/cassandra.yaml"
   $dc_rack_properties_file = "${config_path}/${snitch_properties_file}"
   $jvm_options_file = "${config_path}/jvm.options"
@@ -240,6 +242,16 @@ define cassandra::instance (
     }
   }
 
+  file { $service_file:
+    ensure  => file,
+    content => template($service_file_tmpl).
+    owner   => 'root',
+    group   => 'root',
+    mode    => '0755',
+    before  => Service['title']
+  }
+
+
   if $service_refresh {
     service { $title:
       ensure    => $service_ensure,
@@ -249,6 +261,7 @@ define cassandra::instance (
         File[$config_file],
         File[$dc_rack_properties_file],
         Package['cassandra'],
+        File[$service_file]
       ],
     }
   } else {
@@ -260,6 +273,7 @@ define cassandra::instance (
         File[$config_file],
         File[$dc_rack_properties_file],
         Package['cassandra'],
+        File[$service_file]
       ],
     }
   }

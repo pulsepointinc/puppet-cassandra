@@ -1,12 +1,32 @@
 define cassandra::instance inherits cassandra (
-  String $service_name = $::cassandra::service_name,
-  Boolean $manage_config_file = $::cassandra::manage_config_file,
-  String $config_path = $::cassandra::config_path,
-  String $snitch_properties_file = $::cassandra::snitch_properties_file,
-  String $commitlog_directory = $::cassandra::commitlog_directory,
-  String $commitlog_directory_mode = $::cassandra::commitlog_directory_mode,
-  Boolean $cassandra_9822 = $::cassandra::cassandra_9822,
-  String $cassandra_2356_sleep_seconds = $::cassandra::cassandra_2356_sleep_seconds,
+  $instance                     = $title,
+  $baseline_settings            = $::cassandra::baseline_settings,
+  $cassandra_2356_sleep_seconds = $::cassandra::cassandra_2356_sleep_seconds,
+  $cassandra_9822               = $::cassandra::cassandra_9822,
+  $cassandra_yaml_tmpl          = $::cassandra::cassandra_yaml_tmpl,
+  $commitlog_directory          = $::cassandra::commitlog_directory,
+  $commitlog_directory_mode     = $::cassandra::commitlog_directory_mode,
+  Boolean $manage_config_file   = $::cassandra::manage_config_file,
+  $config_file_mode             = $::cassandra::config_file_mode,
+  $config_path                  = $::cassandra::config_path,
+  $data_file_directories        = $::cassandra::data_file_directories,
+  $data_file_directories_mode   = $::cassandra::data_file_directories_mode,
+  $dc                           = $::cassandra::dc,
+  $dc_suffix                    = $::cassandra::dc_suffix,
+  $fail_on_non_supported_os     = $::cassandra::fail_on_non_supported_os,
+  $hints_directory              = $::cassandra::hints_directory,
+  $hints_directory_mode         = $::cassandra::hints_directory_mode,
+  $prefer_local                 = $::cassandra::prefer_local,
+  $rack                         = $::cassandra::rack,
+  $rackdc_tmpl                  = $::cassandra::rackdc_tmpl,
+  $saved_caches_directory       = $::cassandra::saved_caches_directory,
+  $saved_caches_directory_mode  = $::cassandra::saved_caches_directory_mode,
+  $service_enable               = $::cassandra::service_enable,
+  $service_ensure               = $::cassandra::service_ensure,
+  $service_refresh              = $::cassandra::service_refresh,
+  $settings                     = $::cassandra::settings,
+  $snitch_properties_file       = $::cassandra::snitch_properties_file,
+  $systemctl                    = $::cassandra::systemctl,
 ) {
 
   $config_file = "${config_path}/cassandra.yaml"
@@ -28,7 +48,7 @@ define cassandra::instance inherits cassandra (
         exec { "/sbin/chkconfig --add ${service_name}":
           unless  => "/sbin/chkconfig --list ${service_name}",
           require => Package['cassandra'],
-          before  => Service['cassandra'],
+          before  => Service[$instance],
         }
       }
     }
@@ -42,7 +62,7 @@ define cassandra::instance inherits cassandra (
       $data_dir_before = Package['cassandra']
 
       if $cassandra_9822 {
-        file { '/etc/init.d/cassandra':
+        file { "/etc/init.d/$title":
           source => 'puppet:///modules/cassandra/CASSANDRA-9822/cassandra',
           mode   => '0555',
           before => Package['cassandra'],
@@ -50,28 +70,12 @@ define cassandra::instance inherits cassandra (
       }
       # Sleep after package install and before service resource to prevent
       # possible duplicate processes arising from CASSANDRA-2356.
-      exec { 'CASSANDRA-2356 sleep':
+      exec { "CASSANDRA-2356 sleep $title":
         command     => "/bin/sleep ${cassandra_2356_sleep_seconds}",
         refreshonly => true,
         user        => 'root',
         subscribe   => Package['cassandra'],
-        before      => Service['cassandra'],
-      }
-
-      group { 'cassandra':
-        ensure => present,
-      }
-
-      $user = 'cassandra'
-
-      user { $user:
-        ensure     => present,
-        comment    => 'Cassandra database,,,',
-        gid        => 'cassandra',
-        home       => '/var/lib/cassandra',
-        shell      => '/bin/false',
-        managehome => true,
-        require    => Group['cassandra'],
+        before      => Service[$title],
       }
       # End of CASSANDRA-2356 specific resources.
     }
@@ -191,29 +195,27 @@ define cassandra::instance inherits cassandra (
     before  => $dc_rack_properties_file_before,
   }
 
-  if $package_ensure != 'absent' and $package_ensure != 'purged' {
-    if $service_refresh {
-      service { 'cassandra':
-        ensure    => $service_ensure,
-        name      => $service_name,
-        enable    => $service_enable,
-        subscribe => [
-          File[$config_file],
-          File[$dc_rack_properties_file],
-          Package['cassandra'],
-        ],
-      }
-    } else {
-      service { 'cassandra':
-        ensure  => $service_ensure,
-        name    => $service_name,
-        enable  => $service_enable,
-        require => [
-          File[$config_file],
-          File[$dc_rack_properties_file],
-          Package['cassandra'],
-        ],
-      }
+  if $service_refresh {
+    service { $title:
+      ensure    => $service_ensure,
+      name      => $service_name,
+      enable    => $service_enable,
+      subscribe => [
+        File[$config_file],
+        File[$dc_rack_properties_file],
+        Package['cassandra'],
+      ],
+    }
+  } else {
+    service { $title:
+      ensure  => $service_ensure,
+      name    => $service_name,
+      enable  => $service_enable,
+      require => [
+        File[$config_file],
+        File[$dc_rack_properties_file],
+        Package['cassandra'],
+      ],
     }
   }
 }

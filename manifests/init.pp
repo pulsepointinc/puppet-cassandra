@@ -159,10 +159,32 @@ class cassandra (
   $settings                     = {},
   $snitch_properties_file       = 'cassandra-rackdc.properties',
   $systemctl                    = $::cassandra::params::systemctl,
+  $default_instance             = true,
   ) inherits cassandra::params {
   if $service_provider != undef {
     Service {
       provider => $service_provider,
+    }
+  }
+
+  case $::osfamily {
+    'Debian': {
+
+      group { 'cassandra':
+        ensure => present,
+      }
+
+      $user = 'cassandra'
+
+      user { $user:
+        ensure     => present,
+        comment    => 'Cassandra database,,,',
+        gid        => 'cassandra',
+        home       => '/var/lib/cassandra',
+        shell      => '/bin/false',
+        managehome => true,
+        require    => Group['cassandra'],
+      }
     }
   }
 
@@ -177,5 +199,9 @@ class cassandra (
     onlyif      => "test -x ${systemctl}",
     path        => ['/usr/bin', '/bin'],
     refreshonly => true,
+  }
+
+  if $default_instance {
+    cassandra::instance { 'cassandra': }
   }
 }

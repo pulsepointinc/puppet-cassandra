@@ -22,6 +22,7 @@ define cassandra::instance (
   $rackdc_tmpl                  = 'cassandra/cassandra-rackdc.properties.erb',
   $saved_caches_directory       = undef,
   $saved_caches_directory_mode  = '0750',
+  String $service_file_tmpl     = 'cassandra/cassandra.init.erb',
   $service_enable               = true,
   $service_ensure               = undef,
   $service_refresh              = true,

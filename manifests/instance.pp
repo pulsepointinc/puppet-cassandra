@@ -5,7 +5,7 @@ define cassandra::instance (
   $cassandra_2356_sleep_seconds = 5,
   $cassandra_9822               = false,
   $cassandra_yaml_tmpl          = 'cassandra/cassandra.yaml.erb',
-  String $other_cassandra_configs = '',
+  $other_cassandra_configs      = undef,
   $commitlog_directory          = undef,
   $commitlog_directory_mode     = '0750',
   Boolean $manage_config_file   = true,

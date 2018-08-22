@@ -1,15 +1,15 @@
 #!/bin/bash
 #
-# /etc/init.d/cassandra
+# /etc/init.d/<%= @title %>
 #
 # Startup script for Cassandra
 #
 # chkconfig: 2345 80 20
-# description: Starts and stops Cassandra
-# pidfile: /var/run/cassandra/cassandra.pid
+# description: Starts and stops Cassandra instance <%= @title %>
+# pidfile: /var/run/cassandra/<%= @title %>.pid
 
 ### BEGIN INIT INFO
-# Provides:          cassandra
+# Provides:          <%= @title %>
 # Required-Start:    $remote_fs $network $named $time
 # Required-Stop:     $remote_fs $network $named $time
 # Should-Start:      ntp mdadm

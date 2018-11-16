@@ -203,8 +203,32 @@ class cassandra (
 
   if $default_instance {
     cassandra::instance { 'cassandra':
+      baseline_settings => $baseline_settings,
+      cassandra_2356_sleep_seconds => $cassandra_2356_sleep_seconds,
+      cassandra_9822 => $cassandra_9822,
+      cassandra_yaml_tmpl => $cassandra_yaml_tmpl,
+      commitlog_directory => $commitlog_directory,
+      commitlog_directory_mode => $commitlog_directory_mode,
+      config_file_mode => $config_file_mode,
       config_path => $config_path,
-      systemctl => $systemctl,
+      data_file_directories => $data_file_directories,
+      data_file_directories_mode => $data_file_directories_mode,
+      dc => $dc,
+      dc_suffix => $dc_suffix,
+      hints_directory => $hints_directory,
+      hints_directory_mode => $hints_directory_mode,
+      prefer_local => $prefer_local,
+      rack => $rack,
+      rackdc_tmpl => $rackdc_tmpl,
+      saved_caches_directory => $saved_caches_directory,
+      saved_caches_directory_mode => $saved_caches_directory_mode,
+      service_enable => $service_enable,
+      service_ensure => $service_ensure,
+      service_provider => $service_provider,
+      service_refresh => $service_refresh,
+      settings => $settings,
+      snitch_properties_file => $snitch_properties_file,
+      systemctl => $systemctl
     }
   }
 }
